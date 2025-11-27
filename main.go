@@ -126,6 +126,80 @@ func formatQuantity(quantity float64) string {
 	return p.Sprintf("%.0f", quantity)
 }
 
+// --- NEW Helper Function ---
+
+// formatOutput transforms the semicolon-separated response string into a readable message.
+func formatOutput(rawOutput string) string {
+	parts := make(map[string]string)
+
+	// 1. Parse the semicolon string into a map
+	pairs := strings.Split(rawOutput, ";")
+	for _, pair := range pairs {
+		kv := strings.SplitN(pair, ":", 2)
+		if len(kv) == 2 {
+			parts[kv[0]] = kv[1]
+		}
+	}
+
+	// 2. Identify the source and get key data points
+	source := parts["token_source"]
+	price := parts["current_price_usd"]
+	change := parts["24h_change"]
+
+	// The CMC response contains the full name, which is ideal
+	tokenName := parts["name"]
+	if tokenName == "" {
+		tokenName = "Token" // Fallback if name is missing
+	}
+
+	// 3. Start building the human-readable response
+	var responseBuilder strings.Builder
+
+	// Add the source and token name
+	responseBuilder.WriteString(fmt.Sprintf("💰 **%s Price & Market Overview**\n", tokenName))
+
+	// Add current price
+	responseBuilder.WriteString(fmt.Sprintf("- **Price (USD):** %s\n", price))
+
+	// Add 24-hour change with proper color emoji
+	changeFloat, err := strconv.ParseFloat(strings.TrimSuffix(change, "%"), 64)
+	if err == nil {
+		if changeFloat >= 0 {
+			responseBuilder.WriteString(fmt.Sprintf("- **24h Change:** **🟢 +%s**\n", change))
+		} else {
+			responseBuilder.WriteString(fmt.Sprintf("- **24h Change:** **🔴 %s**\n", change))
+		}
+	} else if change != "" {
+		// Fallback for unparseable change, just print the raw string
+		responseBuilder.WriteString(fmt.Sprintf("- **24h Change:** %s\n", change))
+	}
+
+	// Add Market Cap (available from CEX APIs)
+	if marketCap, ok := parts["market_cap_usd"]; ok && marketCap != "" {
+		responseBuilder.WriteString(fmt.Sprintf("- **Market Cap:** %s\n", marketCap))
+	}
+
+	// Add Volume (available from Dexscreener)
+	if volume, ok := parts["volume_24h"]; ok && volume != "" {
+		responseBuilder.WriteString(fmt.Sprintf("- **24h Volume:** %s\n", volume))
+	}
+
+	// Add FDV (available from Dexscreener)
+	if fdv, ok := parts["fdv"]; ok && fdv != "" {
+		responseBuilder.WriteString(fmt.Sprintf("- **Fully Diluted Value (FDV):** %s\n", fdv))
+	}
+
+	// Add Circulating Supply
+	if supply, ok := parts["circulating_supply"]; ok && supply != "N/A" && supply != "" {
+		responseBuilder.WriteString(fmt.Sprintf("- **Circulating Supply:** %s\n", supply))
+	}
+
+	// Add Source Footer
+	responseBuilder.WriteString(fmt.Sprintf("\n*(Data provided by %s)*", strings.ToUpper(source)))
+
+	return responseBuilder.String()
+}
+
 // --- API Logic Functions ---
 
 // 1. CoinGecko API (Failover)
@@ -325,7 +399,8 @@ func (a *PMOAgent) ProcessTask(ctx context.Context, input string) (string, error
 		if err != nil {
 			return "Error fetching DEX data.", err
 		}
-		return dexResponse, nil
+		// --- FORMATTING CHANGE HERE ---
+		return formatOutput(dexResponse), nil
 	}
 
 	// 3. Try CEX Primary (CoinMarketCap)
@@ -334,7 +409,8 @@ func (a *PMOAgent) ProcessTask(ctx context.Context, input string) (string, error
 
 	// Check if CMC succeeded (no fatal error AND found data)
 	if cmcErr == nil && !strings.Contains(cmcResponse, "CMC could not find market data") {
-		return cmcResponse, nil
+		// --- FORMATTING CHANGE HERE ---
+		return formatOutput(cmcResponse), nil
 	}
 
 	// 4. Try CEX Failover (CoinGecko)
@@ -344,7 +420,8 @@ func (a *PMOAgent) ProcessTask(ctx context.Context, input string) (string, error
 
 	// Check if CoinGecko succeeded (no fatal error AND found data)
 	if cgErr == nil && !strings.Contains(cgResponse, "Could not find data for") {
-		return cgResponse, nil
+		// --- FORMATTING CHANGE HERE ---
+		return formatOutput(cgResponse), nil
 	}
 
 	// 5. Final Failure
