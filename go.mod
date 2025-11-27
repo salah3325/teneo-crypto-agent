@@ -5,6 +5,7 @@ go 1.25.4
 require (
 	github.com/TeneoProtocolAI/teneo-agent-sdk v0.3.0
 	github.com/joho/godotenv v1.5.1
+	golang.org/x/text v0.30.0
 )
 
 require (
