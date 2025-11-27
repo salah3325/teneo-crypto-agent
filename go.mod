@@ -1,11 +1,11 @@
-module teneo-project-1
+module teneo-agent
 
 go 1.25.4
 
 require (
 	github.com/TeneoProtocolAI/teneo-agent-sdk v0.3.0
 	github.com/joho/godotenv v1.5.1
-	golang.org/x/text v0.30.0
+	golang.org/x/text v0.31.0
 )
 
 require (
@@ -35,6 +35,6 @@ require (
 	github.com/tklauser/go-sysconf v0.3.12 // indirect
 	github.com/tklauser/numcpus v0.6.1 // indirect
 	golang.org/x/crypto v0.43.0 // indirect
-	golang.org/x/sync v0.17.0 // indirect
+	golang.org/x/sync v0.18.0 // indirect
 	golang.org/x/sys v0.37.0 // indirect
 )
